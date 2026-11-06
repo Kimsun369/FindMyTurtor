@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+.cache/
+.env*
+!.env.example
+*.tsbuildinfo
+*-debug.log*
+logs/
+*.log
+.claude-replay.*
+/backend/uploads/*
+!/backend/uploads/.gitkeep
+/backend/public/
