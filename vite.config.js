@@ -9,6 +9,9 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   root: path.resolve(dirname, 'frontend'),
   plugins: [react()],
+  // Three.js is loaded by the lazy staircase module. Include it explicitly so
+  // Vite's dependency optimizer resolves it consistently from the repo root.
+  optimizeDeps: { include: ['three'] },
   server: {
     port: Number(process.env.VITE_PORT) || 5173,
     proxy: { '/api': 'http://localhost:4000', '/uploads': 'http://localhost:4000' },

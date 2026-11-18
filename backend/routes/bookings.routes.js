@@ -16,6 +16,24 @@ const bookingSelect = `
   JOIN users tutor ON tutor.user_id = l.tutor_id
   JOIN subjects s ON s.subject_id = l.subject_id`
 
+export async function lockTutorAndCheckAvailability(connection, tutorId, date, time, excludeBookingId = null, includePending = true) {
+  // Serialize requests for this tutor so simultaneous requests through different
+  // listings cannot both claim the same date and time.
+  await connection.execute('SELECT user_id FROM users WHERE user_id = ? FOR UPDATE', [tutorId])
+  const statuses = includePending ? "b.status IN ('pending', 'accepted')" : "b.status = 'accepted'"
+  const exclusion = excludeBookingId ? 'AND b.booking_id <> ?' : ''
+  const values = [tutorId, date, time]
+  if (excludeBookingId) values.push(excludeBookingId)
+  const [conflicts] = await connection.execute(
+    `SELECT b.booking_id FROM bookings b
+     JOIN tutor_listings l ON l.tutor_listing_id = b.tutor_listing_id
+     WHERE l.tutor_id = ? AND b.requested_date = ? AND b.requested_time = ?
+       AND ${statuses} ${exclusion} LIMIT 1`,
+    values,
+  )
+  if (conflicts.length) throw new AppError(409, 'That tutor already has a request at this date and time. Choose another time.', 'TIME_TAKEN')
+}
+
 router.get('/', requireAuth, async (req, res) => {
   const user = currentUser(req)
   const conditions = []
@@ -71,11 +89,7 @@ router.post('/', requireAuth, requireRole('student'), async (req, res) => {
     const listing = listings[0]
     if (!listing) throw new AppError(404, 'This tutor listing is unavailable.', 'LISTING_UNAVAILABLE')
     if (Number(listing.tutor_id) === Number(student.user_id)) throw new AppError(400, 'You cannot book your own tutor listing.', 'SELF_BOOKING')
-    const [conflicts] = await connection.execute(
-      `SELECT booking_id FROM bookings WHERE tutor_listing_id = ? AND requested_date = ? AND requested_time = ? AND status IN ('pending', 'accepted') LIMIT 1`,
-      [listingId, date, `${time}:00`],
-    )
-    if (conflicts.length) throw new AppError(409, 'That time was just requested by someone else. Choose another time.', 'TIME_TAKEN')
+    await lockTutorAndCheckAvailability(connection, listing.tutor_id, date, `${time}:00`)
     const [result] = await connection.execute(
       'INSERT INTO bookings (student_id, tutor_listing_id, requested_date, requested_time, status) VALUES (?, ?, ?, ?, ?)',
       [student.user_id, listingId, date, `${time}:00`, 'pending'],
@@ -113,6 +127,13 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
       (user.role === 'student' && Number(booking.student_id) === Number(user.user_id) && nextStatus === 'cancelled')
     if (!mayManage) throw new AppError(403, 'You do not have permission to change this booking.', 'FORBIDDEN')
     if (booking.status !== 'pending') throw new AppError(409, 'Only pending bookings can be changed.', 'INVALID_TRANSITION')
+    if (nextStatus === 'accepted') {
+      const [details] = await connection.execute(
+        'SELECT requested_date, requested_time FROM bookings WHERE booking_id = ?',
+        [id],
+      )
+      await lockTutorAndCheckAvailability(connection, booking.tutor_id, details[0].requested_date, details[0].requested_time, id, false)
+    }
     await connection.execute('UPDATE bookings SET status = ? WHERE booking_id = ?', [nextStatus, id])
     await connection.commit()
   } catch (error) {

@@ -3,9 +3,9 @@ import bcrypt from 'bcryptjs'
 import { pool } from '../config/database.js'
 import { currentUser, requireAuth, requireRole } from '../middleware/auth.js'
 import { AppError } from '../middleware/errors.js'
-import { bookingSelect } from './bookings.routes.js'
+import { bookingSelect, lockTutorAndCheckAvailability } from './bookings.routes.js'
 import { listingSelect } from './listings.routes.js'
-import { bookingStatuses, cleanText, emailPattern, isBookingStatus, pagination, requireId, validPassword } from '../lib/validation.js'
+import { cleanText, emailPattern, isBookingStatus, pagination, requireId, validPassword } from '../lib/validation.js'
 
 const router = Router()
 router.use(requireAuth, requireRole('admin'))
@@ -160,9 +160,35 @@ router.patch('/bookings/:id/status', async (req, res) => {
   const id = requireId(req.params.id, 'booking')
   const status = req.body.status
   if (!isBookingStatus(status)) throw new AppError(400, 'Choose a valid booking status.', 'INVALID_STATUS')
-  const [existing] = await pool.execute('SELECT booking_id FROM bookings WHERE booking_id = ?', [id])
-  if (!existing[0]) throw new AppError(404, 'Booking not found.', 'NOT_FOUND')
-  await pool.execute('UPDATE bookings SET status = ? WHERE booking_id = ?', [status, id])
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const [existing] = await connection.execute(
+      `SELECT b.booking_id, b.requested_date, b.requested_time, b.status, l.tutor_id
+       FROM bookings b JOIN tutor_listings l ON l.tutor_listing_id = b.tutor_listing_id
+       WHERE b.booking_id = ? FOR UPDATE`,
+      [id],
+    )
+    const booking = existing[0]
+    if (!booking) throw new AppError(404, 'Booking not found.', 'NOT_FOUND')
+    if (status === 'pending' || status === 'accepted') {
+      await lockTutorAndCheckAvailability(
+        connection,
+        booking.tutor_id,
+        booking.requested_date,
+        booking.requested_time,
+        id,
+        status === 'pending',
+      )
+    }
+    await connection.execute('UPDATE bookings SET status = ? WHERE booking_id = ?', [status, id])
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
   const [rows] = await pool.execute(`${bookingSelect} WHERE b.booking_id = ?`, [id])
   res.json({ message: 'Booking updated.', data: rows[0] })
 })

@@ -32,9 +32,8 @@ router.patch('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   const subjectName = cleanText(req.body.subject_name, 100)
   const description = cleanText(req.body.description, 2000) || null
   if (subjectName.length < 2) throw new AppError(400, 'Enter a subject name.', 'VALIDATION_ERROR', { subject_name: 'Enter a subject name.' })
-  let result
   try {
-    ;[result] = await pool.execute('UPDATE subjects SET subject_name = ?, description = ? WHERE subject_id = ?', [subjectName, description, id])
+    await pool.execute('UPDATE subjects SET subject_name = ?, description = ? WHERE subject_id = ?', [subjectName, description, id])
   } catch (error) {
     if (error?.code === 'ER_DUP_ENTRY') throw new AppError(409, 'A subject with this name already exists.', 'DUPLICATE_SUBJECT')
     throw error

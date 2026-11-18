@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n api,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:client": "vite --host 0.0.0.0",
+    "dev:client": "vite --force --host 0.0.0.0",
     "dev:server": "node --watch backend/server.js",
     "build": "vite build && node --check backend/server.js",
+    "lint": "eslint frontend/src backend vite.config.js eslint.config.js",
     "start": "node backend/server.js",
     "seed": "node backend/database/seed.mjs",
     "test": "node --test backend/test/*.test.js"
@@ -24,11 +25,16 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-router-dom": "^7.18.5",
-    "three": "0.186.1"
+    "three": "^0.186.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@vitejs/plugin-react": "^6.2.1",
     "concurrently": "^10.0.6",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "vite": "^8.3.6"
   },
   "engines": {

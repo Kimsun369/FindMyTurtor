@@ -1,6 +1,17 @@
 # FindMyTutor testing report
 
-Test date: 2026-11-05
+Latest verification date: 2026-11-18
+
+## Latest verification
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| `npm test` | PASS: 16 passed, 0 failed (2026-11-18) | API guard, validation, upload, and seeded password hash tests. Local socket access was needed for the API tests. |
+| `npm run lint` | PASS (2026-11-18) | ESLint checked the frontend and backend source. |
+| `npm run build` | PASS (2026-11-18) | Vite production build and backend entrypoint syntax check succeeded. Vite reported that the lazily loaded 3D visualization chunk exceeds 500 kB. |
+| MySQL availability | BLOCKED | No service was reachable at `127.0.0.1:3306`; database-backed browser workflows remain unverified. |
+
+The workflow table below records the last database/browser scenario audit (2026-11-05). The automated tests, lint, and build ran on 2026-11-18; these checks do not count as an end-to-end database workflow pass.
 
 ## Checks run
 

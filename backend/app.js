@@ -45,10 +45,18 @@ app.use('/api/admin', adminRoutes)
 app.use('/uploads', express.static(uploadDirectory, { fallthrough: false, index: false }))
 
 app.use('/api', notFound)
-app.use(express.static(clientDist, { index: false }))
-app.get(/.*/, (_req, res, next) => {
-  res.sendFile(path.join(clientDist, 'index.html'), (error) => error && next(error))
-})
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(clientDist, { index: false }))
+  app.get(/.*/, (_req, res, next) => {
+    res.sendFile(path.join(clientDist, 'index.html'), (error) => error && next(error))
+  })
+} else {
+  // During development, Vite owns the browser UI. Avoid showing a stale build
+  // from backend/public when someone opens the API port directly.
+  app.get('/', (_req, res) => {
+    res.redirect(302, process.env.CLIENT_ORIGIN || `http://localhost:${process.env.VITE_PORT || 5173}`)
+  })
+}
 app.use(errorHandler)
 
 export default app

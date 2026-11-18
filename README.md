@@ -1,158 +1,162 @@
 # FindMyTutor
 
-FindMyTutor is a tutor discovery and lesson-request platform built for the INFO 653 final project. Students search real tutor listings and request lessons; tutors manage their listings and respond to requests; administrators manage accounts, subjects, listings, and bookings.
+FindMyTutor is a local tutor-discovery website for the INFO 653 final project. Visitors browse tutor listings; students can request lessons; tutors manage their own listings and respond to requests; administrators manage accounts, subjects, listings, and bookings.
 
-The classroom application uses **JavaScript, React, React Router, Vite, Express, MySQL, mysql2, bcrypt, express-session, and Multer**. The active project is organized into `frontend/` and `backend/`.
+The INFO 653 brief allows a similar topic with instructor approval. FindMyTutor is not one of the listed sample topics, so confirm your instructor approved it for your team.
 
-The active project is written in JavaScript and JSX. It has no TypeScript source files.
+## Roles and demo accounts
 
-## Features
+Every seeded account uses the development-only password `DemoPass123!`.
 
-- Student and tutor registration, login, logout, and role-protected workspaces.
-- Bcrypt password hashes and HTTP-only session cookies.
-- Tutor listing create, read, update, delete, search, and subject filtering.
-- JPEG/PNG image uploads, content-signature checks, and a 2 MB limit.
-- Student booking requests, student cancellation, and tutor accept/reject actions.
-- Administrator dashboards, user approval/deactivation, subject management, listing management, and booking management.
-- Server-side validation, prepared SQL statements, foreign-key constraints, and ownership checks.
-- Responsive public and account pages.
+| Role | Demo email | What to show |
+| --- | --- | --- |
+| Student | `student@demo.test` | Browse tutors, request lessons, view or cancel requests |
+| Tutor | `maya.chen@demo.test` | Create/edit/delete own listings and respond to requests |
+| Administrator | `admin@demo.test` | Review counts, approve accounts, manage subjects/listings |
 
-## Project structure
+The seed also includes a second student and nine more tutors. Their emails are listed in `backend/database/seed.sql`. These accounts and the password are fictional and for local demonstrations only.
 
-```text
-frontend/
-  src/App.jsx                 React Router pages and role workspaces
-  src/AuthContext.jsx         Browser session state
-  src/api.js                  Credentialed API client
-  src/styles.css              Responsive interface styles
-backend/
-  app.js                      Express middleware and static client hosting
-  server.js                   API startup and MySQL connection check
-  config/database.js          mysql2 connection pool
-  middleware/                 Authentication, upload, and error handling
-  routes/                     Auth, listing, subject, booking, and admin APIs
-  database/schema.sql         Four application tables and constraints
-  database/seed.sql           Development demo data
-  database/seed.mjs           Applies schema and seed files
-  uploads/                    Runtime image storage (ignored by git)
-  test/                       Node test-runner validation and API guard tests
+## Install and run
+
+Prerequisites: Node.js 24.22.1+, npm, and MySQL 8.0 or 8.4.
+
+```bash
+npm install
+cp .env.example .env
 ```
 
-## Database relationships
+Edit `.env` with your local MySQL username/password and a private `SESSION_SECRET`. Start MySQL, then create the database and demo records:
 
-- `users` stores students, tutors, and seeded administrators.
-- `subjects` stores administrator-managed learning areas.
-- `tutor_listings.tutor_id` references `users.user_id`; `subject_id` references `subjects.subject_id`.
-- `bookings.student_id` references `users.user_id`; `tutor_listing_id` references `tutor_listings.tutor_listing_id`.
-- The schema uses `RESTRICT` for referenced records. Accounts, subjects, tutor listings, and booking history cannot be deleted while dependent records exist; deactivate accounts or listings instead.
-- These are the four application tables. Development sessions use Express's in-memory session store, so no fifth database table is created.
+```bash
+npm run seed
+```
 
-## Prerequisites
-
-- Node.js 24.22.1+ (matches the project toolchain).
-- MySQL 8.0+ running locally.
-- npm.
-
-The project was authored against MySQL 8.0 syntax. Use a supported MySQL 8.0 or 8.4 server for the classroom database.
-
-## Installation and database setup
-
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Create a local environment file and change the session secret and MySQL settings:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Keep `.env` private. Do not commit it or paste secret values into chat.
-
-3. Create the database and sample records. The seed script applies `schema.sql` first, then `seed.sql`:
-
-   ```bash
-   npm run seed
-   ```
-
-   Or run the SQL files manually, in order:
-
-   ```bash
-   mysql -u root -p < backend/database/schema.sql
-   mysql -u root -p < backend/database/seed.sql
-   ```
-
-   `DB_USER`, `DB_PASSWORD`, and `DB_PORT` in `.env` must match your local MySQL setup. If your MySQL user cannot create databases, create `findmytutor` first with an account that can, then run the schema file.
-
-## Start the application
-
-With MySQL running and `.env` configured:
+Start the frontend and API together:
 
 ```bash
 npm run dev
 ```
 
-This starts React/Vite at <http://localhost:5173>, the Express API at <http://localhost:4000>, and a health check at <http://localhost:4000/api/health>. Vite proxies `/api` and `/uploads` to Express.
+- Website: <http://localhost:5173>
+- Express API health check: <http://localhost:4000/api/health>
+- Port 4000 is the API during development; its `/` redirects to Vite.
 
-For a production-style local run:
+For a production-style local run, build first, then set production mode for the server:
 
 ```bash
 npm run build
-npm start
+NODE_ENV=production npm start
 ```
 
-Express serves the built client and API on port 4000. Set `VITE_PORT` and `PORT` in `.env` to change ports.
+Open <http://localhost:4000>. MySQL must be running for the API and the database-backed pages to work.
 
+## Demo script
 
-## Demo accounts
+### Visitor
 
-The seed data uses fictional accounts. All demo accounts share this **development-only** password:
+1. Open `/`. The login card and staircase are visible immediately.
+2. Browse tutors from the header, search or filter, and open a tutor detail page.
+3. Register as a student or return to the home page to sign in.
+
+### Student
+
+1. Sign in with `student@demo.test` / `DemoPass123!`.
+2. Review the student workspace and seeded requests.
+3. Browse a tutor, submit a future lesson request, then inspect it in **My bookings**. A pending request can be cancelled.
+
+### Tutor
+
+1. Sign out and sign in with `maya.chen@demo.test` / `DemoPass123!`.
+2. Create or edit a listing; optionally upload one JPEG/PNG under 2 MB.
+3. Open **Requests** and accept or reject a pending request.
+4. To demonstrate ownership enforcement, sign in as `daniel.sok@demo.test` and attempt a direct update of Maya's listing; the API returns 403.
+
+### Administrator
+
+1. Sign in with `admin@demo.test` / `DemoPass123!`.
+2. Show dashboard counts, search/approve/deactivate accounts, manage subjects, and review listings/bookings.
+
+## Postman API demonstration
+
+The API base URL is `http://localhost:4000/api`. Postman requests use the Express port, not the Vite port.
+
+1. Start MySQL, run `npm run seed`, and start `npm run dev`.
+2. In Postman, import [`postman/FindMyTutor.postman_collection.json`](postman/FindMyTutor.postman_collection.json).
+3. Send requests in order within each folder: public requests, student, tutor, and administrator. Review each request's **Test Results**.
+4. Use the same `localhost:4000` host for all requests. Postman stores the `findmytutor.sid` session cookie after login; this API does not use bearer tokens. Logging in as another role replaces the active session.
+
+The collection demonstrates health, search, unauthenticated access rejection, student booking, tutor listing validation and CRUD, cross-owner denial, and admin access. Booking requests remain in the database. The tutor folder creates and deletes its own temporary listing. For image upload, send `POST /api/listings` as a tutor with **Body → form-data**, the listing fields as text, and `image` as a File. Choose a JPEG/PNG below 2 MB; let Postman set the multipart content type and boundary.
+
+Postman supplements the required browser UI. The project brief requires the core journey to work in the browser too.
+
+## How the code works
+
+The frontend sends credentialed `fetch` requests through `frontend/src/api.js`. Vite proxies `/api` and `/uploads` to Express in development. Express mounts separate route files in `backend/app.js`; routes validate input, check the session/role/record owner, and execute parameterized SQL through the MySQL pool in `backend/config/database.js`. JSON responses update the React page. Passwords are bcrypt hashes and sessions use HTTP-only cookies.
+
+### Folder map
 
 ```text
-DemoPass123!
+frontend/src/
+  App.jsx                  Routes, navigation, and page/role components
+  LoginCard.jsx            Home sign-in form and stage feedback
+  LearningArchitecture3D.jsx  Staircase sign-in feedback using Three.js
+  AuthContext.jsx          Current account, login, registration, logout
+  api.js                   Fetch wrapper, cookies, and API errors
+  main.jsx                 React entry point and CSS imports
+  design-system.css        Shared colors, type, controls, surfaces, responsive rules
+  styles.css               Base and component styles
+  original-theme.css       Existing layout primitives used by pages
+backend/
+  app.js                   Middleware and route registration
+  server.js                MySQL check and Express startup
+  config/database.js       mysql2 connection pool
+  middleware/              Session auth, image upload, safe API errors
+  routes/                  Auth, listings, subjects, bookings, admin
+  database/schema.sql      Tables, constraints, and relationships
+  database/seed.sql        Fictional demo accounts and records
+  database/seed.mjs        Applies schema.sql and seed.sql
+  test/                    API guard, upload, and validation tests
+postman/                   Importable Postman collection
 ```
 
-| Role | Email |
+### Main routes and project mapping
+
+| INFO 653 requirement | Implementation |
 | --- | --- |
-| Administrator | `admin@demo.test` |
-| Student | `student@demo.test` |
-| Student | `jordan.student@demo.test` |
-| Tutor | `maya.chen@demo.test` |
-| Tutor | `daniel.sok@demo.test` |
-| Tutor | `sophea.lim@demo.test` |
-| Tutor | `noah.williams@demo.test` |
-| Tutor | `lina.park@demo.test` |
-| Tutor | `omar.haddad@demo.test` |
-| Tutor | `priya.nair@demo.test` |
-| Tutor | `ethan.brown@demo.test` |
-| Tutor | `nita.vann@demo.test` |
-| Tutor | `lucas.martin@demo.test` |
-| Tutor | `chenda.khem@demo.test` |
+| Register, login, logout, and hashed passwords | `frontend/src/AuthContext.jsx`; `backend/routes/auth.routes.js` |
+| Browse records and view details | Tutor directory/detail in `frontend/src/App.jsx`; `GET /api/listings` and `GET /api/listings/:id` |
+| Create, update, delete own main records | Tutor listing pages; `backend/routes/listings.routes.js` checks ownership on every write |
+| Search/filter | Listing search and filters use parameterized queries in `backend/routes/listings.routes.js` |
+| Optional one JPEG/PNG upload up to 2 MB | `backend/middleware/upload.js`; listing form and placeholder in `frontend/src/App.jsx` |
+| Validation, safe errors, and helpful missing-record response | `backend/lib/validation.js`, route handlers, `backend/middleware/errors.js`; frontend feedback and empty states |
+| Three-table owner/category/main-record structure | `users`, `subjects`, and `tutor_listings` in `backend/database/schema.sql` |
 
-Every seeded tutor has a sample listing. Registration creates students as active and tutors as pending administrator approval. Public registration cannot create administrators.
+The project also has `bookings` as a fourth table and administrator pages. These are supported extensions for the tutor marketplace; bookings and an admin dashboard are not required by the INFO 653 brief. They do not replace the required owner-controlled listing workflow.
 
-## Testing
+## Design decisions
 
-Run the project checks:
+- The first page presents the login card and staircase together. Typing an email lights the lower steps; entering the password lights the rest; successful login lights the goal and plays a short star animation before taking the user directly to their workspace.
+- The shared palette is charcoal, off-white, forest green, and muted brass. The landing page and role workspaces reuse the same brand colors, button treatment, typography, and spacing. The staircase is a focused sign-in cue; other pages use straightforward surfaces and tables.
+- Edit design tokens, controls, and responsive behavior in `frontend/src/design-system.css`. Component/layout rules are in `frontend/src/styles.css` and `frontend/src/original-theme.css`. The login stage/card is in `LoginCard.jsx`; the staircase is in `LearningArchitecture3D.jsx`.
+
+## Known limitations and submission notes
+
+- Tutor registration creates a pending account; an administrator must approve it before that tutor can sign in. Seeded tutor accounts are active for the demo.
+- Sessions use Express's in-memory store and reset when the API restarts. Images are stored on the local filesystem.
+- There is no payment processing, tutor availability calendar, or email delivery. Booking requests use a selected date/time and simple conflict checks.
+- Database-backed workflows need a running MySQL server. `testing-report.md` records which checks were actually run and which need local end-to-end verification.
+- Replace the team member/contribution placeholders below and confirm the FindMyTutor topic was approved before submitting.
+
+| Team member | Contribution |
+| --- | --- |
+| _Add name_ | _Add contribution_ |
+| _Add name_ | _Add contribution_ |
+| _Add name_ | _Add contribution_ |
+
+## Checks
 
 ```bash
+npm run lint
 npm test
 npm run build
 ```
-
-`testing-report.md` records the checks actually run and lists workflows requiring a running MySQL service. MySQL must be available before `npm run dev` starts.
-
-## Security and classroom limitations
-
-- All SQL uses mysql2 prepared statements. Role checks and record ownership are enforced in Express routes.
-- Passwords are bcrypt-hashed. User responses never include `password_hash`.
-- Session cookies are HTTP-only, `SameSite=Lax`, and `Secure` in production. Set a long random `SESSION_SECRET` in `.env`.
-- Multer limits uploads to one JPEG or PNG file at 2 MB; the server checks file signatures and creates UUID filenames.
-- Express's default session store is in memory, suitable for a single-process classroom demo. Sessions are cleared when the server restarts; a durable multi-instance deployment needs a separate session store.
-- Booking collision checks reserve the same listing/date/time for pending or accepted requests. This project does not implement a tutor availability calendar or payment processing.
-- Images are stored on the local filesystem. A deployment that does not preserve local files needs an external file store.
-- Demo credentials and sample records must be replaced before any public deployment.
-
-# FindMyTurtor

@@ -1,12 +1,240 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, Clock3, GraduationCap, LogOut, MapPin, Menu, Search, ShieldCheck, Users, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, Clock3, GraduationCap, LogOut, MapPin, Menu, Search, ShieldCheck, Users, X } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { api, errorText } from './api'
+import LoginCard from './LoginCard'
 
 const LearningArchitecture3D = lazy(() => import('./LearningArchitecture3D').then((module) => ({ default: module.LearningArchitecture3D })))
+const homeCss = `
+.theme-home {
+  --lc-ink:#fff; --lc-muted:#b6c2bc; --lc-faint:#a0aea7;
+  --lc-line:rgba(255,255,255,.13); --lc-line-strong:rgba(255,255,255,.26);
+  --lc-mint:#52e0aa; --lc-mint-ink:#05261a; --lc-glow:62,220,160;
+  --lc-ease:cubic-bezier(0.22,0.8,0.2,1); --lc-spring:cubic-bezier(0.34,1.4,0.5,1);
+  min-height:100vh; background:#060b09; color:var(--lc-ink); color-scheme:dark;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* floating glass header */
+.theme-home .site-header {
+  position:fixed; top:16px; left:0; right:0; z-index:60; margin:0 auto;
+  width:min(1180px, calc(100% - 32px));
+  background:rgba(12,20,17,.55);
+  -webkit-backdrop-filter:blur(22px) saturate(140%); backdrop-filter:blur(22px) saturate(140%);
+  border:1px solid var(--lc-line); border-radius:999px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 18px 40px -18px rgba(0,0,0,.8);
+  animation:hs-drop .9s .1s var(--lc-ease) both;
+}
+.theme-home .site-header .header-inner {
+  max-width:none; width:100%; margin:0; box-sizing:border-box;
+  padding:8px 8px 8px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+}
+.theme-home .site-header .brand { color:var(--lc-ink); font-weight:650; font-size:1.05rem; letter-spacing:-.01em; text-decoration:none; display:flex; align-items:center; gap:10px; }
+.theme-home .brand-mark {
+  display:grid; place-items:center; width:34px; height:34px; border-radius:10px;
+  background:#f4f6f4; color:#101512; transition:transform .45s var(--lc-spring);
+}
+.theme-home .brand:hover .brand-mark { transform:rotate(-8deg) scale(1.08); }
+.theme-home .site-header .mobile-menu { color:var(--lc-ink); background:transparent; border:0; }
+
+@media (min-width:821px) {
+  .theme-home .site-header .main-nav { display:flex; align-items:center; gap:6px; }
+  .theme-home .site-header .nav-actions { display:flex; align-items:center; gap:8px; }
+  .theme-home .site-header .nav-user { display:flex; align-items:center; gap:10px; }
+}
+.theme-home .site-header .main-nav > a {
+  color:var(--lc-muted); text-decoration:none; padding:9px 14px; border-radius:999px; font-size:.93rem; font-weight:550;
+  transition:color .2s, background-color .2s;
+}
+.theme-home .site-header .main-nav > a:hover { color:var(--lc-ink); background:rgba(255,255,255,.07); }
+.theme-home .site-header .button-link { color:var(--lc-muted); background:none; border:0; cursor:pointer; font:inherit; font-size:.9rem; display:inline-flex; align-items:center; gap:6px; transition:color .2s; }
+.theme-home .site-header .button-link:hover { color:var(--lc-ink); }
+.theme-home .avatar-mini { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:rgba(var(--lc-glow),.16); color:var(--lc-mint); border:1px solid rgba(var(--lc-glow),.35); font-weight:650; text-transform:uppercase; }
+.theme-home .nav-user-name { color:var(--lc-ink); font-size:.92rem; font-weight:550; }
+
+.theme-home .site-header .nav-actions .button {
+  height:42px; padding:0 18px; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:999px; font-size:.92rem; font-weight:600; text-decoration:none; white-space:nowrap;
+  transition:transform .25s var(--lc-spring), box-shadow .3s var(--lc-ease), background-color .2s, border-color .2s;
+}
+.theme-home .site-header .nav-actions .button.button-quiet {
+  background:transparent !important; color:var(--lc-ink) !important; border:1px solid var(--lc-line) !important; box-shadow:none !important;
+}
+.theme-home .site-header .nav-actions .button.button-quiet:hover { border-color:var(--lc-line-strong) !important; background:rgba(255,255,255,.06) !important; }
+.theme-home .site-header .nav-actions .button.button-primary {
+  background:var(--lc-mint) !important; color:var(--lc-mint-ink) !important; border:0 !important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.22) inset, 0 8px 20px -6px rgba(var(--lc-glow),.6) !important;
+}
+.theme-home .site-header .nav-actions .button.button-primary:hover { transform:translateY(-1px) scale(1.03); box-shadow:0 0 0 1px rgba(255,255,255,.28) inset, 0 12px 26px -6px rgba(var(--lc-glow),.75) !important; }
+.theme-home a:focus-visible, .theme-home button:focus-visible { outline:2px solid var(--lc-mint); outline-offset:2px; }
+
+@media (max-width:820px) {
+  .theme-home .site-header { border-radius:26px; top:12px; width:calc(100% - 24px); }
+  .theme-home .site-header .header-inner { padding:8px 10px 8px 16px; }
+  .theme-home .site-header .main-nav.is-open {
+    background:rgba(10,17,14,.94); -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+    border:1px solid var(--lc-line); border-radius:22px; padding:10px;
+  }
+}
+
+/* hero */
+.theme-home .hero-full {
+  --stair-shift:clamp(0px, 9vw, 170px);
+  position:relative; isolation:isolate; overflow:hidden; background:#060b09;
+  min-height:100vh; min-height:100svh; display:flex; flex-direction:column; justify-content:center;
+}
+.theme-home .hero-full::before {
+  content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.10) 1px, transparent 1px); background-size:28px 28px;
+  -webkit-mask-image:radial-gradient(75% 65% at 50% 45%, #000 0%, transparent 100%);
+  mask-image:radial-gradient(75% 65% at 50% 45%, #000 0%, transparent 100%);
+}
+.theme-home .hero-3d {
+  position:absolute; top:0; bottom:0; left:var(--stair-shift); right:calc(var(--stair-shift) * -1); z-index:1;
+  -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 var(--stair-shift));
+  mask-image:linear-gradient(90deg, transparent 0, #000 var(--stair-shift));
+}
+@media (max-width:820px) { .theme-home .hero-full { --stair-shift:0px; } .theme-home .hero-3d { -webkit-mask-image:none; mask-image:none; opacity:.5; } }
+.theme-home .hero-full-shade {
+  position:absolute; inset:0; z-index:2; pointer-events:none;
+  background:
+    radial-gradient(60% 50% at 24% 10%, rgba(62,220,160,.14), transparent 70%),
+    radial-gradient(50% 42% at 100% 100%, rgba(60,170,220,.12), transparent 70%),
+    linear-gradient(180deg, rgba(6,11,9,.25) 0%, rgba(6,11,9,.7) 100%);
+}
+.theme-home .hero-full-inner {
+  position:relative; z-index:3; width:100%; max-width:1212px; min-height:0; height:auto; margin:0 auto;
+  padding:120px 16px 28px; box-sizing:border-box; display:flex; justify-content:flex-start; align-items:center;
+}
+@media (max-width:820px) { .theme-home .hero-full-inner { padding-top:100px; justify-content:center; } }
+
+/* trust strip under the card */
+.theme-home .hero-strip {
+  position:relative; z-index:3; width:100%; max-width:1212px; margin:0 auto; padding:0 16px 36px; box-sizing:border-box;
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+.theme-home .hero-chip {
+  display:inline-flex; align-items:center; gap:10px; padding:8px 16px 8px 8px; border-radius:999px;
+  background:rgba(12,20,17,.55); border:1px solid var(--lc-line);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  color:var(--lc-muted); font-size:.88rem; font-weight:550;
+  animation:hs-rise .8s var(--lc-ease) both; animation-delay:calc(1.1s + var(--i, 0) * .1s);
+  transition:transform .3s var(--lc-spring), border-color .25s, color .25s;
+}
+.theme-home .hero-chip:hover { transform:translateY(-2px); border-color:rgba(var(--lc-glow),.4); color:var(--lc-ink); }
+.theme-home .hero-chip-icon { display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:rgba(var(--lc-glow),.14); color:var(--lc-mint); }
+@media (max-width:820px) { .theme-home .hero-strip { justify-content:center; } }
+
+/* signed-in card: same glass as the login card */
+.theme-home .home-signed-in {
+  position:relative; isolation:isolate; overflow:hidden; box-sizing:border-box;
+  width:100%; max-width:480px; padding:56px 40px 48px; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:16px;
+  background:linear-gradient(165deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.015) 40%, rgba(255,255,255,0) 100%), #0a110e;
+  -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+  border:1px solid var(--lc-line); border-radius:32px;
+  box-shadow:inset 1px 1px 0 rgba(150,255,215,.35), inset 0 0 0 1px rgba(255,255,255,.05), 0 50px 90px -30px rgba(0,0,0,.95);
+  animation:hs-land 1.2s .15s cubic-bezier(.3,.1,.25,1) both;
+}
+.theme-home .home-signed-in::before {
+  content:''; position:absolute; z-index:-1; left:-10%; top:-30%; width:80%; height:70%;
+  background:radial-gradient(closest-side, rgba(var(--lc-glow),.45), transparent);
+  filter:blur(26px); pointer-events:none;
+}
+.theme-home .home-signed-in .kicker { color:var(--lc-mint); font-size:.75rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; }
+.theme-home .home-signed-in h1 { margin:0 0 12px; color:#fff; font-size:2.4rem; line-height:1.1; font-weight:600; letter-spacing:-.032em; }
+.theme-home .home-signed-in .button.button-primary {
+  display:inline-flex; align-items:center; gap:8px; height:48px; padding:0 24px; border-radius:999px; font-weight:600; text-decoration:none;
+  background:var(--lc-mint); color:var(--lc-mint-ink); border:0;
+  box-shadow:0 0 0 1px rgba(255,255,255,.22) inset, 0 8px 20px -6px rgba(var(--lc-glow),.6);
+  transition:transform .25s var(--lc-spring), box-shadow .3s var(--lc-ease);
+}
+.theme-home .home-signed-in .button.button-primary:hover { transform:translateY(-1px) scale(1.04); box-shadow:0 0 0 1px rgba(255,255,255,.28) inset, 0 12px 26px -6px rgba(var(--lc-glow),.75); }
+
+
+/* lit staircase (right column) */
+.theme-home .hero-stair {
+  position:absolute; z-index:3; top:50%; right:max(16px, calc((100% - 1180px) / 2 + 20px));
+  height:min(74vh, 620px); aspect-ratio:600 / 650; max-width:46vw; translate:0 -46%;
+  pointer-events:none; animation:hs-rise 1.2s .35s var(--lc-ease) both;
+}
+.theme-home .hero-stair::before {
+  content:''; position:absolute; inset:-8% -18% -4%; z-index:-1; pointer-events:none;
+  background:radial-gradient(closest-side, rgba(var(--lc-glow), calc(.10 + var(--p, 0) * .34)), transparent 72%);
+  filter:blur(26px); transition:background .6s;
+}
+.theme-home .hero-stair svg { display:block; width:100%; height:100%; overflow:visible; }
+.theme-home .st-riser { fill:url(#st-riser); stroke:rgba(255,255,255,.07); stroke-width:1; }
+.theme-home .st-tread { fill:url(#st-tread); stroke:rgba(255,255,255,.10); stroke-width:1; }
+.theme-home .st-riser-lit { fill:url(#st-riser-lit); }
+.theme-home .st-tread-lit { fill:url(#st-tread-lit); }
+.theme-home .st-gold .st-riser { fill:url(#st-gold-riser); }
+.theme-home .st-gold .st-tread { fill:url(#st-gold-tread); }
+.theme-home .st-gold .st-riser-lit { fill:url(#st-gold-lit); }
+.theme-home .st-gold .st-tread-lit { fill:url(#st-gold-lit); }
+.theme-home .st-lit { opacity:var(--lit, 0); transition:opacity .55s var(--lc-ease); }
+.theme-home .st-glow { fill:#3edca0; opacity:calc(var(--lit, 0) * .9); transition:opacity .55s var(--lc-ease); }
+.theme-home .st-gold .st-glow, .theme-home .st-glow-gold { fill:#ffcf5e; }
+.theme-home .st-edge-base { fill:rgba(var(--lc-glow), .28); }
+.theme-home .st-edge { fill:#eafff6; }
+.theme-home .st-edge-glow { fill:#52e0aa; opacity:calc(var(--lit, 0) * .95); transition:opacity .55s var(--lc-ease); }
+.theme-home .st-gold .st-edge { fill:#fff4c9; }
+.theme-home .st-gold .st-edge-glow { fill:#ffd36b; }
+.theme-home .st-sweep { fill:#eafff6; fill-opacity:calc(var(--lit, 0) * .55); opacity:0; }
+.theme-home .is-live .st-sweep { animation:st-wave 2.4s ease-in-out infinite; animation-delay:calc(var(--i, 0) * .14s); }
+@keyframes st-wave { 0%, 100% { opacity:0; } 40% { opacity:1; } }
+
+.theme-home .st-arch { fill:none; stroke:#5d5430; stroke-width:9; stroke-linecap:round; }
+.theme-home .st-arch-lit { fill:none; stroke:#ffe08a; stroke-width:9; stroke-linecap:round; opacity:var(--lit, 0); transition:opacity .6s var(--lc-ease); }
+.theme-home .st-arch-glow { fill:none; stroke:#ffcf5e; stroke-width:16; stroke-linecap:round; opacity:calc(var(--lit, 0) * .8); transition:opacity .6s var(--lc-ease); }
+.theme-home .st-disc { fill:#131916; stroke:rgba(255,255,255,.08); stroke-width:1.5; }
+.theme-home .st-disc-lit { fill:url(#st-disc-lit); opacity:var(--lit, 0); transition:opacity .7s var(--lc-ease); }
+
+/* the star that comes out of the arch */
+.theme-home .st-star-pop {
+  transform:translateY(0) scale(0); opacity:0;
+  transition:transform 1.3s cubic-bezier(.2, 1.25, .3, 1), opacity .5s ease;
+}
+.theme-home .hero-stair[data-star='true'] .st-star-pop { transform:translateY(-108px) scale(1); opacity:1; }
+.theme-home .hero-stair[data-stage='4'] .st-star-pop { transform:translateY(-124px) scale(1.5); }
+.theme-home .st-float { animation:st-bob 3.4s ease-in-out infinite; }
+@keyframes st-bob { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+.theme-home .st-rays { animation:st-spin 18s linear infinite; }
+@keyframes st-spin { to { transform:rotate(360deg); } }
+.theme-home .st-halo { animation:st-pulse 2.4s ease-in-out infinite; }
+@keyframes st-pulse { 0%, 100% { opacity:.55; } 50% { opacity:1; } }
+.theme-home .hero-stair[data-stage='3'] .st-halo { animation-duration:.8s; }
+.theme-home .st-spark { fill:#fff1b8; opacity:0; }
+.theme-home .hero-stair[data-star='true'] .st-spark { animation:st-spark 2.4s ease-out infinite; animation-delay:calc(var(--k, 0) * .3s); }
+@keyframes st-spark {
+  0% { opacity:0; transform:rotate(var(--a)) translateX(26px) scale(.4); }
+  20% { opacity:1; }
+  100% { opacity:0; transform:rotate(var(--a)) translateX(92px) scale(1); }
+}
+.theme-home .st-ring { fill:none; stroke:#ffe08a; stroke-width:3; opacity:0; transform-origin:0 0; }
+.theme-home .hero-stair[data-stage='4'] .st-ring { animation:st-ring 1.1s ease-out both; }
+@keyframes st-ring { from { opacity:.9; transform:scale(.6); } to { opacity:0; transform:scale(7); } }
+@media (max-width:900px) {
+  .theme-home .hero-stair { right:50%; translate:50% -46%; opacity:.35; max-width:80vw; }
+}
+
+@keyframes hs-drop { from { opacity:0; transform:translateY(-18px); } to { opacity:1; transform:none; } }
+@keyframes hs-rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+@keyframes hs-land {
+  from { opacity:0; transform:perspective(1200px) translateY(60px) rotateX(20deg) scale(.94); }
+  to { opacity:1; transform:none; }
+}
+@media (max-width:480px) { .theme-home .home-signed-in { padding:40px 22px 32px; border-radius:26px; } .theme-home .home-signed-in h1 { font-size:2.1rem; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-home *, .theme-home *::before { animation:none !important; transition:none !important; }
+}
+`
+function HomeStyles() { return <style>{homeCss}</style> }
 
 const roleHome = (role) => role === 'admin' ? '/admin/dashboard' : role === 'tutor' ? '/tutor/dashboard' : '/student/dashboard'
+const roleProfile = (role) => `/${role}/profile`
 const money = (value) => `$${Number(value || 0).toFixed(0)}`
 
 function useData(path, refresh = 0) {
@@ -26,7 +254,7 @@ function PageState({ loading, error, children }) {
   return children
 }
 
-function Header() {
+function Header({ minimal = false }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -39,10 +267,8 @@ function Header() {
       <button className="mobile-menu button-icon" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">{menuOpen ? <X /> : <Menu />}</button>
       <nav className={menuOpen ? 'main-nav is-open' : 'main-nav'}>
         <Link onClick={() => setMenuOpen(false)} to="/tutors">Find Tutors</Link>
-        <Link onClick={() => setMenuOpen(false)} to="/#how-it-works">How It Works</Link>
-        <Link onClick={() => setMenuOpen(false)} to="/#subjects">Subjects</Link>
         {user && <Link onClick={() => setMenuOpen(false)} to={roleHome(user.role)}>My workspace</Link>}
-        {user ? <div className="nav-user"><span className="avatar-mini">{user.name?.slice(0, 1)}</span><span className="nav-user-name">{user.name}</span><button className="button-link" onClick={signOut}><LogOut size={15} /> Sign out</button></div> : <div className="nav-actions"><Link className="button button-quiet ghost" to="/login">Log in</Link><Link className="button button-primary button-small primary" to="/register">Join FindMyTutor <ArrowRight size={15} /></Link></div>}
+        {user ? <div className="nav-user"><span className="avatar-mini">{user.name?.slice(0, 1)}</span><span className="nav-user-name">{user.name}</span><button className="button-link" onClick={signOut}><LogOut size={15} /> Sign out</button></div> : minimal ? null : <div className="nav-actions"><Link className="button button-quiet ghost" to="/#login-card" onClick={() => setMenuOpen(false)}>Log in</Link><Link className="button button-primary button-small primary" to="/register">Join FindMyTutor <ArrowRight size={15} /></Link></div>}
       </nav>
     </div>
   </header>
@@ -52,7 +278,11 @@ function Footer() {
   return <footer className="site-footer footer"><div className="footer-inner footer-grid"><Link className="brand footer-brand" to="/" aria-label="FindMyTutor home"><span className="brand-mark"><GraduationCap size={19} /></span><span>FindMyTutor</span></Link><span>© {new Date().getFullYear()} FindMyTutor</span><Link to="/tutors">Find Tutors <ArrowRight size={14} /></Link></div></footer>
 }
 
-function Layout({ children }) { return <><Header />{children}<Footer /></> }
+function Layout({ children, themed = false }) {
+  return themed
+    ? <div className="theme-home"><HomeStyles /><Header minimal />{children}</div>
+    : <><Header />{children}<Footer /></>
+}
 
 function Protected({ role, children }) {
   const { user, loading } = useAuth()
@@ -64,14 +294,25 @@ function Protected({ role, children }) {
   return children
 }
 
+function LoginRedirect() {
+  const location = useLocation()
+  const next = location.state?.from || new URLSearchParams(location.search).get('next')
+  return <Navigate
+    to={{ pathname: '/', search: next ? `?next=${encodeURIComponent(next)}` : '', hash: '#login-card' }}
+    replace
+    state={next ? { from: next } : undefined}
+  />
+}
+
 function App() {
   return <Routes>
-    <Route path="/" element={<Layout><Home /></Layout>} />
+    <Route path="/" element={<Layout themed><Home /></Layout>} />
     <Route path="/tutors" element={<Layout><BrowsePage /></Layout>} />
     <Route path="/tutors/:id" element={<Layout><TutorDetail /></Layout>} />
-    <Route path="/login" element={<AuthPage mode="login" />} />
+    <Route path="/login" element={<LoginRedirect />} />
     <Route path="/register" element={<AuthPage mode="register" />} />
     <Route path="/student/dashboard" element={<Protected role="student"><StudentDashboard /></Protected>} />
+    <Route path="/student/profile" element={<Protected role="student"><AccountProfile role="student" /></Protected>} />
     <Route path="/student/bookings" element={<Protected role="student"><BookingsPage role="student" /></Protected>} />
     <Route path="/student/bookings/:id" element={<Protected role="student"><BookingDetail role="student" /></Protected>} />
     <Route path="/tutor/dashboard" element={<Protected role="tutor"><TutorDashboard /></Protected>} />
@@ -80,8 +321,9 @@ function App() {
     <Route path="/tutor/listings/:id/edit" element={<Protected role="tutor"><ListingEditor /></Protected>} />
     <Route path="/tutor/bookings" element={<Protected role="tutor"><BookingsPage role="tutor" /></Protected>} />
     <Route path="/tutor/bookings/:id" element={<Protected role="tutor"><BookingDetail role="tutor" /></Protected>} />
-    <Route path="/tutor/profile" element={<Protected role="tutor"><TutorProfile /></Protected>} />
+    <Route path="/tutor/profile" element={<Protected role="tutor"><AccountProfile role="tutor" /></Protected>} />
     <Route path="/admin/dashboard" element={<Protected role="admin"><AdminDashboard /></Protected>} />
+    <Route path="/admin/profile" element={<Protected role="admin"><AccountProfile role="admin" /></Protected>} />
     <Route path="/admin/users" element={<Protected role="admin"><AdminUsers /></Protected>} />
     <Route path="/admin/subjects" element={<Protected role="admin"><AdminSubjects /></Protected>} />
     <Route path="/admin/listings" element={<Protected role="admin"><AdminListings /></Protected>} />
@@ -92,29 +334,141 @@ function App() {
   </Routes>
 }
 
-function Home() {
-  const { data: listingData, loading: listingsLoading, error: listingsError } = useData('/listings?limit=6&sort=newest')
-  const { data: subjectData } = useData('/subjects')
-  const listings = listingData?.data || []
-  const subjects = subjectData?.data || []
-  return <main>
-    <section className="hero-home studio-hero"><Suspense fallback={<div className="learning-architecture" aria-hidden="true"><div className="learning-architecture-fallback"><img src="https://images.unsplash.com/photo-1791883143730-659fa9d4065b?auto=format&fit=crop&w=1800&q=90" alt="" /></div></div>}><LearningArchitecture3D /></Suspense><div className="studio-hero-shade" aria-hidden="true" />
-      <div className="content-width studio-hero-stage container"><div className="studio-hero-meta"><span>FindMyTutor / Architecture of understanding</span><span>Student ← connection → tutor</span></div>
-        <div className="hero-copy"><span className="eyebrow"><span className="eyebrow-dot" /> Private tutoring, thoughtfully matched</span><h1>Build the path<span>to understanding.</span></h1><p>Explore experienced private tutors, compare teaching options, and request lessons that fit your learning goals.</p><div className="hero-actions"><Link className="button button-primary primary button-large large" to="/tutors">Find a Tutor <ArrowRight size={18} /></Link><a className="button button-outline secondary button-large large" href="#how-it-works">How It Works</a></div></div>
-        <aside className="studio-hero-aside"><span>Choose with context</span><dl><div><dt>01</dt><dd>Subject expertise</dd></div><div><dt>02</dt><dd>Teaching experience</dd></div><div><dt>03</dt><dd>Location and fee</dd></div></dl></aside>
-        <a className="studio-scroll-cue" href="#subjects"><span>Explore the platform</span><ArrowDown size={17} /></a>
-      </div>
-    </section>
-    <section className="editorial-statement"><div className="content-width statement-grid container"><span className="statement-number">02</span><p>No rankings built on noise. No invented reviews. Just the details that matter when choosing who to learn with.</p><span className="statement-label">Designed for deliberate decisions</span></div></section>
-    <section className="section studio-subjects" id="subjects"><div className="content-width container"><SectionHeading kicker="Subject directory" title="Begin with what you want to understand." action={<Link className="text-link" to="/tutors">View all tutors <ArrowRight size={17} /></Link>} />{subjects.length ? <div className="studio-subject-ledger">{subjects.slice(0, 6).map((subject, index) => <Link to={`/tutors?subject=${subject.subject_id}`} className="studio-subject-row" key={subject.subject_id}><span className="studio-row-index">{String(index + 1).padStart(2, '0')}</span><div><h3>{subject.subject_name}</h3><p>{subject.description || 'Find tutors ready to help you make progress.'}</p></div><span className="studio-row-action"><BookOpen size={17} /><ArrowRight size={18} /></span></Link>)}</div> : <EmptyState title="Subjects are being prepared" body="Check back soon for available learning areas." />}</div></section>
-    <section className="section steps-section studio-process" id="how-it-works"><div className="content-width studio-process-grid container"><div className="studio-process-intro"><span className="kicker">How it works</span><h2>Three deliberate steps. No unnecessary friction.</h2><p>Move from a broad learning goal to a considered lesson request without losing context.</p></div><div className="steps studio-process-steps"><Step number="01" title="Explore tutors." body="Search real tutor profiles by subject, location, and fee." /><Step number="02" title="Compare profiles." body="Review experience, teaching focus, and availability details." /><Step number="03" title="Request a lesson." body="Choose a time, share your goals, and track the response." /></div></div></section>
-    <section className="image-interlude"><div className="interlude-backdrop" role="img" aria-label="Students working together in a classroom" /><div className="content-width interlude-copy container"><span>One-to-one attention</span><h2>A quieter space to ask better questions.</h2></div></section>
-    <section className="section studio-tutors"><div className="content-width container"><SectionHeading kicker="Selected profiles" title="People who know how to make progress feel possible." action={<Link className="text-link" to="/tutors">Explore every profile <ArrowRight size={17} /></Link>} /><PageState loading={listingsLoading} error={listingsError}>{listings.length ? <div className="listing-grid tutor-grid">{listings.slice(0, 3).map((listing) => <ListingCard key={listing.tutor_listing_id} listing={listing} />)}</div> : <EmptyState icon={<Search />} title="No tutor profiles yet" body="Tutor profiles will appear here when they become available." />}</PageState></div></section>
-  </main>
+const STAIR_STEPS = 8
+const clamp01 = (value) => Math.max(0, Math.min(1, value))
+const starPath = (outer, inner) => {
+  const points = []
+  for (let k = 0; k < 10; k += 1) {
+    const radius = k % 2 ? inner : outer
+    const angle = -Math.PI / 2 + k * Math.PI / 5
+    points.push(`${(Math.cos(angle) * radius).toFixed(2)},${(Math.sin(angle) * radius).toFixed(2)}`)
+  }
+  return `M${points.join('L')}Z`
+}
+const STAR_PATH = starPath(34, 14)
+const SPARKLE_PATH = 'M0,-74 L6,-6 L74,0 L6,6 L0,74 L-6,6 L-74,0 L-6,-6Z'
+const SPARKS = [0, 45, 90, 135, 180, 225, 270, 315]
+
+/* Staircase that lights step by step while you type; the star appears once the password is in. */
+function StairLight({ progress, stage }) {
+  const total = progress * (STAIR_STEPS + 1.6)
+  const steps = Array.from({ length: STAIR_STEPS }, (_, i) => {
+    const w = 440 - i * 38
+    return { i, y: 480 - i * 40, w, x: 300 - w / 2, lit: clamp01(total - i) }
+  })
+  const platformLit = clamp01(total - STAIR_STEPS)
+  const archLit = clamp01(total - (STAIR_STEPS + 0.6))
+  const treadPath = ({ x, y, w }) => `M${x} ${y} L${x + w} ${y} L${x + w - 7} ${y - 14} L${x + 7} ${y - 14}Z`
+  return <div className={progress > 0 ? 'hero-stair is-live' : 'hero-stair'} style={{ '--p': progress }} data-stage={stage} data-star={progress >= 0.999} aria-hidden="true">
+    <svg viewBox="0 -90 600 650">
+      <defs>
+        <linearGradient id="st-riser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a3833" /><stop offset="1" stopColor="#121a17" /></linearGradient>
+        <linearGradient id="st-tread" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3f4f48" /><stop offset="1" stopColor="#2b3833" /></linearGradient>
+        <linearGradient id="st-riser-lit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8dffd8" /><stop offset="1" stopColor="#1f9d6d" /></linearGradient>
+        <linearGradient id="st-tread-lit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e3fff3" /><stop offset="1" stopColor="#7beec0" /></linearGradient>
+        <linearGradient id="st-gold-riser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6d6235" /><stop offset="1" stopColor="#3a3420" /></linearGradient>
+        <linearGradient id="st-gold-tread" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ab9c5a" /><stop offset="1" stopColor="#73683c" /></linearGradient>
+        <linearGradient id="st-gold-lit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff3b8" /><stop offset="1" stopColor="#e7b94c" /></linearGradient>
+        <radialGradient id="st-disc-lit"><stop offset="0" stopColor="#fff6cf" /><stop offset=".55" stopColor="#ffd36b" /><stop offset="1" stopColor="#8a6a1c" /></radialGradient>
+        <radialGradient id="st-star-fill"><stop offset="0" stopColor="#ffffff" /><stop offset=".55" stopColor="#ffeaa6" /><stop offset="1" stopColor="#ffc94d" /></radialGradient>
+        <filter id="st-blur" x="-40%" y="-120%" width="180%" height="340%"><feGaussianBlur stdDeviation="9" /></filter>
+        <filter id="st-blur-lg" x="-40%" y="-200%" width="180%" height="500%"><feGaussianBlur stdDeviation="24" /></filter>
+        <filter id="st-blur-sm" x="-20%" y="-300%" width="140%" height="700%"><feGaussianBlur stdDeviation="3" /></filter>
+      </defs>
+
+      <ellipse cx="300" cy="528" rx="250" ry="20" fill="#000" opacity=".6" filter="url(#st-blur-lg)" />
+      <ellipse cx="300" cy="526" rx="230" ry="14" fill="#3edca0" opacity={0.12 + progress * 0.5} filter="url(#st-blur-lg)" />
+
+      {steps.map((s) => <rect key={`g${s.i}`} className="st-glow" style={{ '--lit': s.lit }} x={s.x - 6} y={s.y - 18} width={s.w + 12} height="48" rx="10" filter="url(#st-blur)" />)}
+      <rect className="st-glow st-glow-gold" style={{ '--lit': platformLit }} x="219" y="124" width="162" height="48" rx="10" filter="url(#st-blur)" />
+      <path className="st-arch-glow" style={{ '--lit': archLit }} d="M250 146 V118 A50 50 0 0 1 350 118 V146" filter="url(#st-blur)" />
+
+      {[...steps].reverse().map((s) => <g key={s.i} className="st-step" style={{ '--lit': s.lit, '--i': s.i }}>
+        <path className="st-tread" d={treadPath(s)} />
+        <rect className="st-riser" x={s.x} y={s.y} width={s.w} height="26" rx="3" />
+        <path className="st-tread-lit st-lit" d={treadPath(s)} />
+        <rect className="st-riser-lit st-lit" x={s.x} y={s.y} width={s.w} height="26" rx="3" />
+        <rect className="st-edge-base" x={s.x} y={s.y - 1.5} width={s.w} height="3" rx="1.5" />
+        <rect className="st-edge-glow" x={s.x} y={s.y - 3} width={s.w} height="6" rx="3" filter="url(#st-blur-sm)" />
+        <rect className="st-edge st-lit" x={s.x} y={s.y - 1.5} width={s.w} height="3" rx="1.5" />
+        <path className="st-sweep" d={treadPath(s)} />
+        <rect className="st-sweep" x={s.x} y={s.y} width={s.w} height="26" rx="3" />
+      </g>)}
+
+      <g className="st-step st-gold" style={{ '--lit': platformLit, '--i': STAIR_STEPS }}>
+        <path className="st-tread" d={treadPath({ x: 225, y: 160, w: 150 })} />
+        <rect className="st-riser" x="225" y="160" width="150" height="26" rx="3" />
+        <path className="st-tread-lit st-lit" d={treadPath({ x: 225, y: 160, w: 150 })} />
+        <rect className="st-riser-lit st-lit" x="225" y="160" width="150" height="26" rx="3" />
+        <rect className="st-edge-glow" x="225" y="157" width="150" height="6" rx="3" filter="url(#st-blur-sm)" />
+        <rect className="st-edge st-lit" x="225" y="158.5" width="150" height="3" rx="1.5" />
+      </g>
+
+      <path className="st-arch" d="M250 146 V118 A50 50 0 0 1 350 118 V146" />
+      <path className="st-arch-lit" style={{ '--lit': archLit }} d="M250 146 V118 A50 50 0 0 1 350 118 V146" />
+      <circle className="st-disc" cx="300" cy="116" r="28" />
+      <circle className="st-disc-lit" style={{ '--lit': archLit }} cx="300" cy="116" r="28" />
+
+      <g transform="translate(300 116)">
+        <circle className="st-ring" r="30" />
+        <g className="st-star-pop">
+          <g className="st-float">
+            <circle className="st-halo" r="64" fill="#ffd36b" opacity=".6" filter="url(#st-blur-lg)" />
+            <g className="st-rays"><path d={SPARKLE_PATH} fill="#fff1b8" opacity=".85" filter="url(#st-blur-sm)" /><path d={SPARKLE_PATH} fill="#fff7d6" transform="rotate(45) scale(.62)" opacity=".8" /></g>
+            <path d={STAR_PATH} fill="url(#st-star-fill)" stroke="#fff7d6" strokeWidth="1.5" strokeLinejoin="round" />
+            {SPARKS.map((angle, k) => <circle key={angle} className="st-spark" style={{ '--a': `${angle}deg`, '--k': k }} r="3" />)}
+          </g>
+        </g>
+      </g>
+    </svg>
+  </div>
 }
 
-function SectionHeading({ kicker, title, action }) { return <div className="section-heading"><div><span className="kicker">{kicker}</span><h2>{title}</h2></div>{action}</div> }
-function Step({ number, title, body }) { return <article className="how-step"><span>{number}</span><div><h3>{title}</h3><p>{body}</p></div><ArrowRight size={17} /></article> }
+const heroPerks = [
+  { icon: <ShieldCheck size={15} />, text: 'Admin-approved tutors' },
+  { icon: <CalendarDays size={15} />, text: 'Request a lesson in minutes' },
+  { icon: <MapPin size={15} />, text: 'Phnom Penh & online' },
+]
+
+// set to true to use your own LearningArchitecture3D scene instead of the lit staircase
+const USE_3D_STAIR = false
+
+function Home() {
+  const { user } = useAuth()
+  const [loginStage, setLoginStage] = useState(0)
+  const [typed, setTyped] = useState({ email: 0, password: 0 })
+  // email fills the first 40% of the stairs, the password the rest; signing in / signed in = full
+  const progress = user || loginStage >= 3 ? 1 : Math.round((clamp01(typed.email / 14) * 0.4 + clamp01(typed.password / 6) * 0.6) * 100) / 100
+  const stage = user ? 4 : loginStage
+  function trackInput(event) {
+    const { id, value } = event.target
+    if (id === 'home-email') setTyped((old) => ({ ...old, email: value.length }))
+    else if (id === 'home-password') setTyped((old) => ({ ...old, password: value.length }))
+  }
+  return (
+    <main>
+      <section className="hero-full">
+        {USE_3D_STAIR
+          ? <div className="hero-3d">
+            <Suspense fallback={<div className="learning-architecture learning-architecture-fallback" aria-hidden="true" />}>
+              <LearningArchitecture3D stage={loginStage} progress={progress} />
+            </Suspense>
+          </div>
+          : <StairLight progress={progress} stage={stage} />}
+        <div className="hero-full-shade" aria-hidden="true" />
+        <div className="hero-full-inner" onInput={trackInput}>
+          {!user
+            ? <LoginCard onStageChange={setLoginStage} />
+            : <div className="home-signed-in"><span className="kicker">Welcome back</span><h1>Ready to keep learning?</h1><Link className="button button-primary primary" to={roleHome(user.role)}>Open my workspace <ArrowRight size={16} /></Link></div>}
+        </div>
+        <div className="hero-strip">
+          {heroPerks.map((perk, index) => <span className="hero-chip" style={{ '--i': index }} key={perk.text}><span className="hero-chip-icon">{perk.icon}</span>{perk.text}</span>)}
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function EmptyState({ icon, title, body, action }) { return <div className="empty-state">{icon && <div className="empty-icon">{icon}</div>}<h2>{title}</h2><p>{body}</p>{action}</div> }
 
 function ListingCard({ listing }) {
@@ -164,7 +518,7 @@ function AuthPage({ mode }) {
   return <main className="auth-layout auth-page"><section className="auth-card auth-panel"><Link className="brand" to="/"><span className="brand-mark"><GraduationCap size={20} /></span><span>FindMyTutor</span></Link><Link className="back-link" to="/"><ArrowLeft size={15} /> Back to home</Link><div className="auth-heading"><span className="kicker">{register ? 'A fresh start' : 'Welcome back'}</span><h1>{register ? 'Create your account.' : 'Good to see you again.'}</h1><p>{register ? 'Join as a student to find a tutor, or as a tutor to share your expertise.' : 'Log in to manage your learning, listings, and lesson requests.'}</p></div>
     <form className="form-stack auth-form" onSubmit={submit}>{register && <Field label="Full name"><input required minLength="2" maxLength="120" autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>}<Field label="Email address"><input required type="email" maxLength="254" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field><Field label="Password"><input required type="password" minLength="8" autoComplete={register ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />{register && <small>At least 8 characters, with one uppercase letter and one number.</small>}</Field>{register && <Field label="I’m joining as"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="student">Student</option><option value="tutor">Tutor</option></select></Field>}{state.error && <Notice tone="error">{state.error}</Notice>}{state.message && <Notice tone="success">{state.message}</Notice>}<button className="button button-primary button-full primary" disabled={state.busy}>{state.busy ? 'Please wait…' : register ? 'Create account' : 'Log in'} <ArrowRight size={17} /></button></form>
     <p className="auth-switch">{register ? 'Already have an account?' : 'New to FindMyTutor?'} <Link to={register ? '/login' : '/register'}>{register ? 'Log in' : 'Create an account'}</Link></p><div className="auth-assurance"><ShieldCheck size={16} /> Your account details stay private and secure.</div>
-  </section><aside className="auth-aside auth-image"><img className="auth-promo-image" src="https://images.unsplash.com/photo-1728743264705-776882fce48d?auto=format&fit=crop&w=1400&q=85" alt="Students learning in a bright classroom" /><div className="auth-promo-copy"><span>FindMyTutor</span><h2>A little support can open up a lot.</h2><p>Good tutoring begins with the right fit.</p></div></aside></main>
+  </section><aside className="auth-aside auth-visual-panel"><div className="auth-promo-copy"><span>FindMyTutor · Phnom Penh</span><h2>A little support can open up a lot.</h2><p>Good tutoring begins with the right fit.</p><div className="auth-promo-rule" /><span>Browse real tutor profiles · Compare clearly · Book with confidence</span></div></aside></main>
 }
 
 function Field({ label, children, hint }) { return <label className="form-field field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label> }
@@ -204,15 +558,15 @@ function DashboardShell({ kicker, title, description, links, children }) {
       <button className="sidebar-logout" onClick={signOut}>Sign out</button>
     </aside>
     <div className="dashboard-content">
-      <header className="dashboard-topbar"><div><span>FindMyTutor</span><strong>{user?.name}</strong></div><Link to="/">View site</Link></header>
+      <header className="dashboard-topbar"><div className="dashboard-user"><span>Signed in as</span><strong>{user?.name}</strong></div><div className="dashboard-topbar-actions"><Link to={roleProfile(user?.role)}>My profile <Users size={15} /></Link><Link to="/">View site <ArrowRight size={15} /></Link></div></header>
       <main className="dashboard-main"><div className="dashboard-heading"><div><span className="kicker">{kicker}</span><h1>{title}</h1>{description && <p>{description}</p>}</div><span className="workspace-welcome">Welcome, {user?.name?.split(' ')[0]}</span></div>{children}</main>
     </div>
   </div>
 }
 
-const studentLinks = [{ to: '/student/dashboard', label: 'Overview', icon: <BookOpen size={17} /> }, { to: '/student/bookings', label: 'My bookings', icon: <CalendarDays size={17} /> }, { to: '/tutors', label: 'Find a tutor', icon: <Search size={17} /> }]
+const studentLinks = [{ to: '/student/dashboard', label: 'Overview', icon: <BookOpen size={17} /> }, { to: '/student/bookings', label: 'My bookings', icon: <CalendarDays size={17} /> }, { to: '/tutors', label: 'Find a tutor', icon: <Search size={17} /> }, { to: '/student/profile', label: 'Profile', icon: <Users size={17} /> }]
 const tutorLinks = [{ to: '/tutor/dashboard', label: 'Overview', icon: <BookOpen size={17} /> }, { to: '/tutor/listings', label: 'My listings', icon: <GraduationCap size={17} /> }, { to: '/tutor/bookings', label: 'Requests', icon: <CalendarDays size={17} /> }, { to: '/tutor/profile', label: 'Profile', icon: <Users size={17} /> }]
-const adminLinks = [{ to: '/admin/dashboard', label: 'Overview', icon: <BookOpen size={17} /> }, { to: '/admin/users', label: 'Users', icon: <Users size={17} /> }, { to: '/admin/subjects', label: 'Subjects', icon: <GraduationCap size={17} /> }, { to: '/admin/listings', label: 'Listings', icon: <Search size={17} /> }, { to: '/admin/bookings', label: 'Bookings', icon: <CalendarDays size={17} /> }]
+const adminLinks = [{ to: '/admin/dashboard', label: 'Overview', icon: <BookOpen size={17} /> }, { to: '/admin/users', label: 'Users', icon: <Users size={17} /> }, { to: '/admin/subjects', label: 'Subjects', icon: <GraduationCap size={17} /> }, { to: '/admin/listings', label: 'Listings', icon: <Search size={17} /> }, { to: '/admin/bookings', label: 'Bookings', icon: <CalendarDays size={17} /> }, { to: '/admin/profile', label: 'Profile', icon: <Users size={17} /> }]
 
 function StudentDashboard() {
   const { data, loading, error } = useData('/bookings')
@@ -232,12 +586,14 @@ function TutorDashboard() {
 
 function Metric({ label, value, icon }) { return <article className="metric-card stat-card"><span className="metric-icon">{icon}</span><div><strong>{value}</strong><p className="metric-label">{label}</p></div></article> }
 
-function TutorProfile() {
+function AccountProfile({ role }) {
   const { user, refresh } = useAuth()
   const [name, setName] = useState(user?.name || '')
   const [state, setState] = useState({ busy: false, message: '', error: '' })
   async function submit(event) { event.preventDefault(); setState({ busy: true, message: '', error: '' }); try { await api('/auth/profile', { method: 'PATCH', body: { name } }); await refresh(); setState({ busy: false, message: 'Profile updated.', error: '' }) } catch (error) { setState({ busy: false, message: '', error: errorText(error) }) } }
-  return <DashboardShell kicker="Your account" title="Tutor profile" description="Keep the name on your tutor account up to date." links={tutorLinks}><form className="form-card form-stack narrow-form auth-form panel" onSubmit={submit}><Field label="Full name"><input required minLength="2" maxLength="120" value={name} onChange={(e) => setName(e.target.value)} /></Field>{state.message && <Notice tone="success">{state.message}</Notice>}{state.error && <Notice tone="error">{state.error}</Notice>}<button className="button button-primary primary" disabled={state.busy}>Save profile</button></form></DashboardShell>
+  const links = role === 'admin' ? adminLinks : role === 'tutor' ? tutorLinks : studentLinks
+  const roleCopy = { student: 'Your learning account and contact details.', tutor: 'Your account details and teaching workspace.', admin: 'Your administrator account details.' }
+  return <DashboardShell kicker="Account settings" title="My profile" description={roleCopy[role]} links={links}><section className="account-profile-card"><div className="account-profile-avatar">{user?.name?.trim()?.charAt(0)?.toUpperCase() || 'U'}</div><div className="account-profile-summary"><span className="status status-badge status-active">Active account</span><h2>{user?.name}</h2><p>{capitalize(role)} account</p></div><div className="account-profile-email"><span>Email address</span><strong>{user?.email}</strong></div></section><form className="form-card form-stack account-profile-form panel" onSubmit={submit}><div><span className="kicker">Personal information</span><h2>Account details</h2><p className="account-profile-help">Update the name shown in your workspace and booking requests.</p></div><Field label="Full name"><input required minLength="2" maxLength="120" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></Field><Field label="Email address"><input type="email" value={user?.email || ''} readOnly aria-readonly="true" /></Field>{role === 'tutor' && <div className="profile-next-step"><GraduationCap size={19} /><span>Manage your teaching subjects, fees, experience, and location in your tutor listings.</span><Link to="/tutor/listings">Manage listings <ArrowRight size={15} /></Link></div>}{state.message && <Notice tone="success">{state.message}</Notice>}{state.error && <Notice tone="error">{state.error}</Notice>}<div className="form-actions"><button className="button button-primary primary" disabled={state.busy}>{state.busy ? 'Saving…' : 'Save changes'}</button></div></form></DashboardShell>
 }
 
 function BookingsPage({ role }) {

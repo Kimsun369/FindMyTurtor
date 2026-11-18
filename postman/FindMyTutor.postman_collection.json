@@ -1,0 +1,169 @@
+{
+  "info": {
+    "name": "FindMyTutor API Demo",
+    "description": "Presentation collection for the local Express API. Import this file into Postman, configure the demo credentials if needed, then run the folders in order. Keep requests on localhost so Postman reuses the session cookie.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "adminEmail", "value": "admin@demo.test" },
+    { "key": "studentEmail", "value": "student@demo.test" },
+    { "key": "tutorEmail", "value": "maya.chen@demo.test" },
+    { "key": "otherTutorEmail", "value": "daniel.sok@demo.test" },
+    { "key": "demoPassword", "value": "DemoPass123!" },
+    { "key": "listingId", "value": "1" },
+    { "key": "subjectId", "value": "1" },
+    { "key": "createdListingId", "value": "" },
+    { "key": "bookingDate", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const date = new Date();",
+          "date.setDate(date.getDate() + 30);",
+          "pm.collectionVariables.set('bookingDate', date.toISOString().slice(0, 10));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Public API",
+      "item": [
+        {
+          "name": "Health check",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/health" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('API is healthy', () => pm.response.to.have.status(200));", "pm.test('Health status is ok', () => pm.expect(pm.response.json().data.status).to.eql('ok'));" ] } }]
+        },
+        {
+          "name": "List subjects (save first subject ID)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/subjects" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Subjects are returned', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "if (body.data?.[0]) pm.collectionVariables.set('subjectId', body.data[0].subject_id);" ] } }]
+        },
+        {
+          "name": "Search Maya's mathematics listings (save listing ID)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/listings?limit=10&q=Mathematics" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Public listings are returned', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "const mayaListing = body.data?.find((listing) => listing.tutor_name === 'Maya Chen');", "if (mayaListing) pm.collectionVariables.set('listingId', mayaListing.tutor_listing_id);", "pm.test('Maya demo listing was found', () => pm.expect(mayaListing).to.be.ok);" ] } }]
+        },
+        {
+          "name": "Clear a previous Postman session if present",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Session is cleared or was already absent', () => pm.expect([200, 401]).to.include(pm.response.code));" ] } }]
+        },
+        {
+          "name": "Protected listing write is rejected when signed out",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"subject_id\": {{subjectId}},\n  \"title\": \"Unauthorized demo listing\",\n  \"description\": \"This request should be rejected while signed out.\",\n  \"teaching_fee\": 10,\n  \"status\": \"available\"\n}" }, "url": "{{baseUrl}}/api/listings" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Anonymous write is rejected', () => pm.response.to.have.status(401));", "pm.test('API explains authentication is required', () => pm.expect(pm.response.json().error.code).to.eql('AUTH_REQUIRED'));" ] } }]
+        }
+      ]
+    },
+    {
+      "name": "2. Student session and booking",
+      "item": [
+        {
+          "name": "Student login",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Student login succeeds', () => pm.response.to.have.status(200));", "pm.test('Signed-in role is student', () => pm.expect(pm.response.json().data.user.role).to.eql('student'));" ] } }]
+        },
+        {
+          "name": "Check current session",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/auth/me" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Session is active', () => pm.response.to.have.status(200));", "pm.test('Current user is a student', () => pm.expect(pm.response.json().data.user.role).to.eql('student'));" ] } }]
+        },
+        {
+          "name": "List my bookings",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/bookings" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Student bookings are returned', () => pm.response.to.have.status(200));" ] } }]
+        },
+        {
+          "name": "Request a lesson (optional demo mutation)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tutor_listing_id\": {{listingId}},\n  \"requested_date\": \"{{bookingDate}}\",\n  \"requested_time\": \"16:45\"\n}" }, "url": "{{baseUrl}}/api/bookings" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Lesson request is created', () => pm.response.to.have.status(201));" ] } }]
+        },
+        {
+          "name": "Student logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Student is signed out', () => pm.response.to.have.status(200));" ] } }]
+        }
+      ]
+    },
+    {
+      "name": "3. Tutor listing ownership and CRUD",
+      "item": [
+        {
+          "name": "Tutor login",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{tutorEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Tutor login succeeds', () => pm.response.to.have.status(200));", "pm.test('Signed-in role is tutor', () => pm.expect(pm.response.json().data.user.role).to.eql('tutor'));" ] } }]
+        },
+        {
+          "name": "Reject a listing with a missing title (validation demo)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"subject_id\": {{subjectId}},\n  \"title\": \"\",\n  \"description\": \"This request demonstrates server-side required-field validation.\",\n  \"teaching_fee\": 10,\n  \"status\": \"available\"\n}" }, "url": "{{baseUrl}}/api/listings" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Server rejects an empty title', () => pm.response.to.have.status(400));", "pm.test('Validation identifies the title field', () => pm.expect(pm.response.json().error.fields).to.have.property('title'));" ] } }]
+        },
+        {
+          "name": "Create my listing",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"subject_id\": {{subjectId}},\n  \"title\": \"Postman API demo lesson\",\n  \"description\": \"A sample listing created through the Express API for the project presentation.\",\n  \"qualification\": \"Demo qualification\",\n  \"experience\": 3,\n  \"location\": \"Phnom Penh\",\n  \"teaching_fee\": 0,\n  \"status\": \"available\"\n}" }, "url": "{{baseUrl}}/api/listings" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Tutor listing is created', () => pm.response.to.have.status(201));", "const body = pm.response.json();", "if (body.data?.tutor_listing_id) pm.collectionVariables.set('createdListingId', body.data.tutor_listing_id);" ] } }]
+        },
+        {
+          "name": "Update my listing",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Postman API demo lesson (updated)\",\n  \"description\": \"Updated through the tutor-owned listing route.\",\n  \"teaching_fee\": 0\n}" }, "url": "{{baseUrl}}/api/listings/{{createdListingId}}" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Tutor can update own listing', () => pm.response.to.have.status(200));" ] } }]
+        },
+        {
+          "name": "Log in as a different tutor for the ownership check",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{otherTutorEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Second tutor login succeeds', () => pm.response.to.have.status(200));" ] } }]
+        },
+        {
+          "name": "Try changing another tutor listing (expect 403)",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"This update must be denied\",\n  \"description\": \"Testing the server-side ownership check.\",\n  \"teaching_fee\": 1\n}" }, "url": "{{baseUrl}}/api/listings/{{listingId}}" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Owner check denies a different tutor', () => pm.response.to.have.status(403));" ] } }]
+        },
+        {
+          "name": "Log back in as Maya",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{tutorEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Owner session is restored', () => pm.response.to.have.status(200));" ] } }]
+        },
+        {
+          "name": "Delete my demo listing",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/listings/{{createdListingId}}" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Tutor can delete own unused listing', () => pm.response.to.have.status(200));" ] } }]
+        },
+        {
+          "name": "Tutor logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Tutor is signed out', () => pm.response.to.have.status(200));" ] } }]
+        }
+      ]
+    },
+    {
+      "name": "4. Administrator routes",
+      "item": [
+        {
+          "name": "Administrator login",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Administrator login succeeds', () => pm.response.to.have.status(200));", "pm.test('Signed-in role is admin', () => pm.expect(pm.response.json().data.user.role).to.eql('admin'));" ] } }]
+        },
+        {
+          "name": "Administrator dashboard counts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/stats" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Admin can read dashboard counts', () => pm.response.to.have.status(200));" ] } }]
+        },
+        {
+          "name": "Search users",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/admin/users?role=tutor&limit=5" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Admin can list tutor accounts', () => pm.response.to.have.status(200));" ] } }]
+        },
+        {
+          "name": "Administrator logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Administrator is signed out', () => pm.response.to.have.status(200));" ] } }]
+        }
+      ]
+    }
+  ]
+}
